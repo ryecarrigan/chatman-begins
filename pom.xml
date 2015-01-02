@@ -7,7 +7,10 @@
     <groupId>com.ryancarrigan</groupId>
     <artifactId>ChatmanBegins</artifactId>
     <version>1.0-SNAPSHOT</version>
-
+    <packaging>jar</packaging>
+    <scm>
+        <developerConnection>scm:git:file://${project.basedir}/</developerConnection>
+    </scm>
     <build>
         <defaultGoal>clean package</defaultGoal>
         <plugins>
@@ -21,6 +24,14 @@
                             <mainClass>com.ryancarrigan.chatman.ChatmanLauncher</mainClass>
                         </manifest>
                     </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <version>1.9.2</version>
+                <configuration>
+                    <connectionType>developerConnection</connectionType>
                 </configuration>
             </plugin>
             <plugin>
