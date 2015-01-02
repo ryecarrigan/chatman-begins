@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,7 +19,7 @@ class DataConnector {
     private String     table;
 
     DataConnector(final String channel) {
-        Matcher matcher = Pattern.compile("#([A-Za-z]+)").matcher(channel);
+        final Matcher matcher = Pattern.compile("#([A-Za-z]+)").matcher(channel);
         if (matcher.find()) {
             this.table = "EventLog_" + matcher.group().replace("#", "");
         } else {
@@ -55,20 +57,27 @@ class DataConnector {
     }
 
     void insert(final Event event) throws SQLException {
-        event.log();
         final String sql = event.getStatement(table).replace("'", "\'");
-        log.info(sql);
         connection.createStatement().executeUpdate(sql);
     }
 
-    void react(final Reaction reaction) throws SQLException {
+    List<Reaction> react(final Reaction reaction) throws SQLException {
+        final List<Reaction> reactionList = new ArrayList<>();
         final String sql = reaction.getStatement();
-        log.info(sql);
-        final ResultSet resultSet = connection.createStatement().executeQuery(reaction.getStatement());
+        log.info("R: " + sql);
+        final ResultSet resultSet = connection.createStatement().executeQuery(sql);
         while(resultSet.next()) {
-            log.info(resultSet.getString("Data"));
+            final Reaction newReaction = new Reaction(
+                    resultSet.getString("Channel"),
+                    resultSet.getString("Action"),
+                    resultSet.getString("EventName"),
+                    resultSet.getString("Nick"),
+                    resultSet.getString("Target"),
+                    resultSet.getString("Reaction")
+            );
+            reactionList.add(newReaction);
         }
-
+        return reactionList;
     }
 
 }

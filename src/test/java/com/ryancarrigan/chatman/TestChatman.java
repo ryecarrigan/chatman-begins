@@ -37,4 +37,13 @@ public class TestChatman {
         }
     }
 
+    @Test
+    public void testNullNick() {
+        Reaction reaction = new Reaction("#suavepeanut", "donger", "Message", "suavepeanut", "suavepeabot", "DONGER");
+        Reaction command  = new Reaction("#suavepeanut", "donger", "Message", "NULL", "NULL", "NULL");
+        assert reaction.hasMatchingMessage(command);
+        log.info(reaction.getStatement());
+        log.info(command.getStatement());
+    }
+
 }
