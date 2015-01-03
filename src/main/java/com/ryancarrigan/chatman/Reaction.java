@@ -12,16 +12,18 @@ class Reaction {
 
     private final static Logger log = LoggerFactory.getLogger(Event.class);
 
-    private final String action;
-    private final String channel;
-    private final String eventName;
-    private final String nick;
-    private final String reaction;
-    private final String target;
+    private final Integer count;
+    private final String  action;
+    private final String  channel;
+    private final String  eventName;
+    private final String  nick;
+    private final String  reaction;
+    private final String  target;
 
     public Reaction(final String channel, final String data, final String eventName, final String nick,
-                    final String target, final String reaction) {
+                    final String target, final String reaction, final Integer count) {
         this.channel   = channel;
+        this.count     = count;
         this.action    = data;
         this.eventName = eventName;
         this.nick      = nick;
@@ -45,6 +47,10 @@ class Reaction {
         return get(this.channel);
     }
 
+    public Integer getCount() {
+        return count;
+    }
+
     public String getEventName() {
         return get(this.eventName);
     }
@@ -61,12 +67,12 @@ class Reaction {
         return get(this.target);
     }
 
-    public boolean hasMatchingMessage(final Reaction command) {
+    public boolean hasMatchingMessage(final Action command) {
         log.info(String.format("Determining whether C:%s matches R:%s", command.getAction(), this.getAction()));
         return Pattern.compile(this.getAction()).matcher(command.getAction()).find();
     }
 
-    public boolean hasMatchingNick(final Reaction command) {
+    public boolean hasMatchingNick(final Action command) {
         log.info(String.format("Determining whether C:%s matches R:%s", command.getNick(), this.getNick()));
         return this.getNick().equalsIgnoreCase(command.getNick()) || this.getNick().equalsIgnoreCase("NULL");
     }

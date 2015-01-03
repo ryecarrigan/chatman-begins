@@ -37,9 +37,9 @@ class Event {
                 getHostname(), getNick(), getTarget(), getData(), getNumber());
     }
 
-    void log() {
-        log.info(String.format("<%s> (%s) - %s : %s : %s - %s { %s } [%s]", getEventName(), getChannel(), getLogin(),
-                getHostname(), getNick(), getTarget(), getData(), getNumber()));
+    String getLogMessage() {
+        return String.format("[%s] %s - %s %s", this.channel, this.eventName, this.nick,
+                (this.data == null) ? "" : ": " + this.data);
     }
 
     private String get(final Object parameter) {

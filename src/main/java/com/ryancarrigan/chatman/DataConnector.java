@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,7 +16,9 @@ import java.util.regex.Pattern;
 class DataConnector {
 
     private Connection connection;
+    private String     database;
     private Logger     log = LoggerFactory.getLogger(DataConnector.class);
+    private Properties properties = new Properties();
     private String     table;
 
     DataConnector(final String channel) {
@@ -27,9 +30,15 @@ class DataConnector {
         }
     }
 
+    DataConnector(final String database, final String user, final String pass, final String table) {
+        properties.put("user", user);
+        properties.put("password", pass);
+        this.database = database;
+        this.table    = "EventLog_" + table;
+    }
+
     void connect() throws SQLException {
-        connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatman_db", "chatman", "ch4tp455");
-        log.info("Connected to database");
+        this.connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/" + database, properties);
         createTable();
     }
 
@@ -56,28 +65,44 @@ class DataConnector {
         }
     }
 
-    void insert(final Event event) throws SQLException {
-        final String sql = event.getStatement(table).replace("'", "\'");
-        connection.createStatement().executeUpdate(sql);
+    String getPassword(final String login) throws SQLException {
+        final String sql = "SELECT Pass FROM Credentials WHERE Login='" + login + "'";
+        ResultSet query = connection.createStatement().executeQuery(sql);
+        if (query.next()) {
+            return query.getString("Pass");
+        } else {
+            throw new IllegalArgumentException("No password found for user: " + login);
+        }
     }
 
-    List<Reaction> react(final Reaction reaction) throws SQLException {
+    void insert(final Event event) {
+        final String sql = event.getStatement(table).replace("'", "\'");
+        try {
+            connection.createStatement().executeUpdate(sql);
+        } catch (SQLException e) {
+            log.error("Error inserting event: " + e.getMessage());
+        }
+    }
+
+    List<Reaction> react(final Action reaction) {
         final List<Reaction> reactionList = new ArrayList<>();
-        final String sql = reaction.getStatement();
-        log.info("R: " + sql);
-        final ResultSet resultSet = connection.createStatement().executeQuery(sql);
-        while(resultSet.next()) {
-            final Reaction newReaction = new Reaction(
-                    resultSet.getString("Channel"),
-                    resultSet.getString("Action"),
-                    resultSet.getString("EventName"),
-                    resultSet.getString("Nick"),
-                    resultSet.getString("Target"),
-                    resultSet.getString("Reaction")
-            );
-            reactionList.add(newReaction);
+        try {
+            final ResultSet resultSet = connection.createStatement().executeQuery(reaction.getStatement());
+            while (resultSet.next()) {
+                final Reaction newReaction = new Reaction(
+                        resultSet.getString("Channel"),
+                        resultSet.getString("Action"),
+                        resultSet.getString("EventName"),
+                        resultSet.getString("Nick"),
+                        resultSet.getString("Target"),
+                        resultSet.getString("Reaction"),
+                        resultSet.getInt("Count")
+                );
+                reactionList.add(newReaction);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return reactionList;
     }
-
 }

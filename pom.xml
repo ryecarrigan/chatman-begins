@@ -30,7 +30,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.ryancarrigan.chatman.ChatmanLauncher</mainClass>
+                            <mainClass>com.ryancarrigan.chatman.PeabotLauncher</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -56,7 +56,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <finalName>${project.artifactId}-${project.version}</finalName>
+                    <finalName>peabot</finalName>
                 </configuration>
             </plugin>
             <plugin>

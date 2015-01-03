@@ -59,48 +59,41 @@ public class Chatman extends PircBot {
     private void logEvent(final String eventName, final String channel, final String login, final String hostname,
                           final String nick, final String target, final String data, final Number number) {
         final Event event = new Event(eventName, channel, login, hostname, nick, target, data, number);
-        try {
-            dataConnector.insert(event);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        dataConnector.insert(event);
     }
 
     private void react(final String eventName, final String channel, final String nick, final String target,
                        final String data) {
-        final Reaction command = new Reaction(channel, data, eventName, nick, target, "");
+        final Action command = new Action(channel, data, eventName, nick, target);
         log.info("ACTION: " + command.toString());
-        try {
-            final List<Reaction> reactions = dataConnector.react(command);
-            final int size = reactions.size();
-            if (size > 0) {
-                log.info(size + " possible reactions found.");
-                for (final Reaction reaction : reactions) {
-                    log.info("CHECKING REACTION: " + reaction.toString());
-                    if (reaction.hasMatchingMessage(command) && reaction.hasMatchingNick(command)) {
-                        switch (reaction.getEventName()) {
-                            case "Message":
-                                log.info("SENDING MESSAGE: " + command.getAction());
-                                sendMessage(reaction.getChannel(), reaction.getReaction());
-                                break;
-                            default:
-                                log.info("NO EVENTTYPE");
-                                break;
-                        }
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+        final List<Reaction> reactions = dataConnector.react(command);
+        final int size = reactions.size();
+        if (size > 0) {
+            log.info(size + " possible reactions found.");
+            for (final Reaction reaction : reactions) {
+                log.info("CHECKING REACTION: " + reaction.toString());
+                if (reaction.hasMatchingMessage(command) && reaction.hasMatchingNick(command)) {
+                    switch (reaction.getEventName()) {
+                        case "Message":
+                            log.info("SENDING MESSAGE: " + command.getAction());
+                            sendMessage(reaction.getChannel(), reaction.getReaction());
+                            logEvent(eventName, channel, nick, null, nick, target, data, null);
+                            break;
+                        default:
+                            log.info("NO EVENTTYPE");
+                            break;
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 }
-            } else {
-                log.info("No results found.");
             }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } else {
+            log.info("No results found.");
         }
+
     }
 
     protected void onConnect() {
