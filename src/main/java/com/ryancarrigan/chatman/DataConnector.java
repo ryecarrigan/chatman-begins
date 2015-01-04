@@ -38,7 +38,7 @@ class DataConnector {
     }
 
     void connect() throws SQLException {
-        this.connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/" + database, properties);
+        this.connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/" + database + "?characterEncoding=UTF-8", properties);
         createTable();
     }
 
@@ -48,15 +48,14 @@ class DataConnector {
                 "  `EventName` varchar(32) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT '',\n" +
                 "  `Channel` varchar(128) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL,\n" +
                 "  `Login` varchar(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL,\n" +
-                "  `HostName` varchar(256) COLLATE utf32_unicode_ci DEFAULT NULL,\n" +
-                "  `Nick` varchar(128) COLLATE utf32_unicode_ci DEFAULT NULL,\n" +
-                "  `Target` varchar(128) COLLATE utf32_unicode_ci DEFAULT NULL,\n" +
-                "  `Data` mediumtext COLLATE utf32_unicode_ci,\n" +
+                "  `HostName` varchar(256) COLLATE utf8_unicode_ci DEFAULT NULL,\n" +
+                "  `Nick` varchar(128) COLLATE utf8_unicode_ci DEFAULT NULL,\n" +
+                "  `Target` varchar(128) COLLATE utf8_unicode_ci DEFAULT NULL,\n" +
+                "  `Data` mediumtext COLLATE utf8_unicode_ci,\n" +
                 "  `Number` int(16) DEFAULT NULL,\n" +
                 "  `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP\n" +
-                ") ENGINE=InnoDB AUTO_INCREMENT=22883 DEFAULT CHARSET=utf32 COLLATE=utf32_unicode_ci;";
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
         connection.createStatement().executeUpdate(smt);
-        log.info("Using table: " + table);
     }
 
     void disconnect() throws SQLException {
@@ -66,8 +65,7 @@ class DataConnector {
     }
 
     String getPassword(final String login) throws SQLException {
-        final String sql = "SELECT Pass FROM Credentials WHERE Login='" + login + "'";
-        ResultSet query = connection.createStatement().executeQuery(sql);
+        final ResultSet query = connection.createStatement().executeQuery("SELECT Pass FROM Credentials WHERE Login='" + login + "'");
         if (query.next()) {
             return query.getString("Pass");
         } else {
@@ -80,14 +78,14 @@ class DataConnector {
         try {
             connection.createStatement().executeUpdate(sql);
         } catch (SQLException e) {
-            log.error("Error inserting event: " + e.getMessage());
+            log.error("Error inserting event: " + event.getEventName(), e);
         }
     }
 
-    List<Reaction> react(final Action reaction) {
+    List<Reaction> react(final Action action) {
         final List<Reaction> reactionList = new ArrayList<>();
         try {
-            final ResultSet resultSet = connection.createStatement().executeQuery(reaction.getStatement());
+            final ResultSet resultSet = connection.createStatement().executeQuery(action.getStatement());
             while (resultSet.next()) {
                 final Reaction newReaction = new Reaction(
                         resultSet.getString("Channel"),
@@ -100,8 +98,8 @@ class DataConnector {
                 );
                 reactionList.add(newReaction);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } catch (final SQLException sqle) {
+            sqle.printStackTrace();
         }
         return reactionList;
     }

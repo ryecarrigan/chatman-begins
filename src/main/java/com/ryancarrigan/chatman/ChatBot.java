@@ -23,7 +23,7 @@ abstract class ChatBot extends PircBot {
 
     ChatBot(final String channel, final String login, final String databaseName, final String databaseLogin,
             final String databasePassword) {
-        this.channel       = channel;
+        this.channel       = "#" + channel;
         this.dataConnector = new DataConnector(databaseName, databaseLogin, databasePassword, channel);
         this.login         = login;
         this.setName(login);
@@ -57,7 +57,7 @@ abstract class ChatBot extends PircBot {
 
     protected void onConnect() {
         receiveEvent("Connect", null, null, null, null, null, null, null);
-        joinChannel("#" + channel);
+        joinChannel(channel);
     }
 
     protected void onDisconnect() {

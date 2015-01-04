@@ -68,12 +68,10 @@ class Reaction {
     }
 
     public boolean hasMatchingMessage(final Action command) {
-        log.info(String.format("Determining whether C:%s matches R:%s", command.getAction(), this.getAction()));
         return Pattern.compile(this.getAction()).matcher(command.getAction()).find();
     }
 
     public boolean hasMatchingNick(final Action command) {
-        log.info(String.format("Determining whether C:%s matches R:%s", command.getNick(), this.getNick()));
         return this.getNick().equalsIgnoreCase(command.getNick()) || this.getNick().equalsIgnoreCase("NULL");
     }
 

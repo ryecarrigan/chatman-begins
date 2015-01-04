@@ -38,8 +38,11 @@ class Event {
     }
 
     String getLogMessage() {
-        return String.format("[%s] %s - %s %s", this.channel, this.eventName, this.nick,
-                (this.data == null) ? "" : ": " + this.data);
+        return String.format("%s%s%s%s",
+                (channel == null) ? "" : "[" + channel + "] ",
+                eventName,
+                (nick == null) ? "" : " - " + nick,
+                (data == null) ? "" : ": " + data);
     }
 
     private String get(final Object parameter) {

@@ -28,8 +28,8 @@ class Action {
     }
 
     String getStatement() {
-        return String.format("SELECT * FROM Reactions WHERE EventName='%s' AND Channel='%s'",
-                getEventName(), getChannel());
+        return String.format("SELECT * FROM Reactions WHERE EventName=%s AND Channel='%s'",
+                this.eventName, this.channel);
     }
 
     private String get(final Object parameter) {
@@ -38,14 +38,6 @@ class Action {
 
     public String getAction() {
         return get(this.action);
-    }
-
-    public String getChannel() {
-        return get(this.channel);
-    }
-
-    public String getEventName() {
-        return get(this.eventName);
     }
 
     public String getNick() {
