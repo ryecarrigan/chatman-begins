@@ -36,7 +36,7 @@ class Reaction {
     }
 
     private String get(final Object parameter) {
-        return (null == parameter) ? "NULL" : parameter.toString().replace("'", "\\'");
+        return (null == parameter) ? "NULL" : parameter.toString();
     }
 
     public String getAction() {
@@ -48,7 +48,7 @@ class Reaction {
     }
 
     public Integer getCount() {
-        return count;
+        return (count == null) ? 0 : count;
     }
 
     public String getEventName() {
@@ -73,11 +73,6 @@ class Reaction {
 
     public boolean hasMatchingNick(final Action command) {
         return this.getNick().equalsIgnoreCase(command.getNick()) || this.getNick().equalsIgnoreCase("NULL");
-    }
-
-    public String toString() {
-        return String.format("Do %s: In channel %s when %s  says \"%s\" the %s responds with \"%s\"",
-                getEventName(), getChannel(), getNick(), getAction(), getTarget(), getReaction());
     }
 
 }

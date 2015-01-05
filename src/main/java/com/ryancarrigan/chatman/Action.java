@@ -28,12 +28,12 @@ class Action {
     }
 
     String getStatement() {
-        return String.format("SELECT * FROM Reactions WHERE EventName=%s AND Channel='%s'",
+        return String.format("SELECT * FROM Reactions WHERE EventName='%s' AND Channel='%s'",
                 this.eventName, this.channel);
     }
 
     private String get(final Object parameter) {
-        return (null == parameter) ? "NULL" : parameter.toString().replace("'", "\\'");
+        return (null == parameter) ? "NULL" : parameter.toString();
     }
 
     public String getAction() {

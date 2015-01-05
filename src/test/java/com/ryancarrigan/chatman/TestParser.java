@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.io.UnsupportedEncodingException;
+import java.sql.SQLException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,8 +47,13 @@ public class TestParser {
 
     @Test
     public void testLog() {
-        getLogMessage(null, "Join", null, null);
-        getLogMessage("#suavepeanut", "Message", "suavepeanut", "Hi!");
+        String channel = "#suavepeanut";
+        final int on = 1;
+        log.info(String.format(
+                "insert into `Channels` (Channel, OnlineStatus) " +
+                        "VALUES ('%s', %d) " +
+                        "on duplicate key " +
+                        "UPDATE OnlineStatus=%d;", channel, on, on));
     }
 
     void getLogMessage(String channel, String eventName, String nick, String data) {
@@ -56,6 +62,16 @@ public class TestParser {
                  eventName,
                  (nick == null) ? "" : " - " + nick,
                  (data == null) ? "" : ": " + data));
+    }
+
+    @Test
+    public void connector() {
+//        DataConnector connector = new DataConnector("chatman_db", "chatman", "ch4tp455", "suavepeanut");
+//        try {
+//            connector.connect("magne.zone");
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
     }
 
 }

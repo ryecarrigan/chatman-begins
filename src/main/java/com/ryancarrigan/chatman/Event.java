@@ -33,8 +33,9 @@ class Event {
 
     String getStatement(final String table) {
         return String.format("INSERT INTO `%s` (EventName, Channel, Login, HostName, Nick, Target, Data, Number) "
-                        + "values (%s, %s, %s, %s, %s, %s, %s, %s)", table, getEventName(), getChannel(), getLogin(),
-                getHostname(), getNick(), getTarget(), getData(), getNumber());
+                        + "values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", table, getEventName(),
+                getChannel(), getLogin(), getHostname(), getNick(), getTarget(), getData(), getNumber())
+                .replaceAll("\'NULL\'", "NULL");
     }
 
     String getLogMessage() {
@@ -46,7 +47,7 @@ class Event {
     }
 
     private String get(final Object parameter) {
-        return (null == parameter) ? "NULL" : "'" + parameter.toString().replace("'", "\\'") + "'";
+        return (null == parameter) ? "NULL" : parameter.toString();
     }
 
     public String getChannel() {
@@ -54,7 +55,7 @@ class Event {
     }
 
     public String getData() {
-        return get(this.data);
+        return get(this.data).replace("'", "\\'");
     }
 
     public String getEventName() {
