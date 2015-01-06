@@ -57,14 +57,19 @@ public class Peabot extends ChatBot {
                             default:
                                 break;
                         }
-                        try {
-                            Thread.sleep(1000);
-                        } catch (final InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                        sleep(250);
                     }
                 }
             }
+            sleep(250);
+        }
+    }
+
+    private void sleep(final long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (final InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
