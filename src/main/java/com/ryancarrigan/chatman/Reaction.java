@@ -1,16 +1,13 @@
 package com.ryancarrigan.chatman;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
  * Created by Suave Peanut on 2015.1.1.
  */
-class Reaction {
-
-    private final static Logger log = LoggerFactory.getLogger(Event.class);
+public class Reaction {
 
     private final Integer count;
     private final String  action;
@@ -31,7 +28,7 @@ class Reaction {
         this.target    = target;
     }
 
-    String getStatement() {
+    public String getStatement() {
         return String.format("SELECT * FROM Reactions WHERE EventName='%s' AND Channel='%s'",getEventName(), getChannel());
     }
 
@@ -59,8 +56,12 @@ class Reaction {
         return get(this.nick);
     }
 
+    private List<String> getNicks() {
+        return Arrays.asList(getNick().split("\\|\\|"));
+    }
+
     public String getReaction() {
-        return reaction;
+        return this.reaction;
     }
 
     public String getTarget() {
@@ -72,7 +73,8 @@ class Reaction {
     }
 
     public boolean hasMatchingNick(final Action command) {
-        return this.getNick().equalsIgnoreCase(command.getNick()) || this.getNick().equalsIgnoreCase("NULL");
+        final List<String> nicks = getNicks();
+        return nicks.contains(command.getNick()) || nicks.contains("NULL");
     }
 
 }

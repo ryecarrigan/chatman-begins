@@ -1,16 +1,9 @@
 package com.ryancarrigan.chatman;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.regex.Pattern;
-
 /**
  * Created by Suave Peanut on 2015.1.1.
  */
-class Action {
-
-    private final static Logger log = LoggerFactory.getLogger(Event.class);
+public class Action {
 
     private final String  action;
     private final String  channel;
@@ -27,7 +20,11 @@ class Action {
         this.target    = target;
     }
 
-    String getStatement() {
+    public Action(final String channel, final Event event) {
+        this(channel, event.getData(), event.getEventName(), event.getNick(), event.getTarget());
+    }
+
+    public String getStatement() {
         return String.format("SELECT * FROM Reactions WHERE EventName='%s' AND Channel='%s'",
                 this.eventName, this.channel);
     }

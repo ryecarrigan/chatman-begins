@@ -1,42 +1,38 @@
 package com.ryancarrigan.chatman;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Created by Suave Peanut on 2014.12.30.
  */
-class DataConnector {
-
-    private static Logger log = LoggerFactory.getLogger(DataConnector.class);
+public class DataConnector {
 
     private String     channel;
     private Connection connection;
     private String     database;
-    private Properties properties = new Properties();
+    private Properties credentials = new Properties();
     private String     table;
 
-    DataConnector(final String database, final String user, final String pass, final String channel) {
-        properties.put("user", user);
-        properties.put("password", pass);
+    public DataConnector(final String database, final String user, final String pass, final String channel) {
+        credentials.put("user", user);
+        credentials.put("password", pass);
         this.channel  = channel;
         this.database = database;
         this.table    = "EventLog_" + channel;
     }
 
-    void connect() throws SQLException {
+    public void connect() throws SQLException {
         connect("localhost");
     }
 
-    void connect(final String host) throws SQLException {
-        this.connection = DriverManager.getConnection("jdbc:mysql://" + host + ":3306/" + database + "?characterEncoding=UTF-8", properties);
+    public void connect(final String host) throws SQLException {
+        this.connection = DriverManager.getConnection("jdbc:mysql://" + host + ":3306/" + database + "?characterEncoding=UTF-8", credentials);
         this.setBotStatus(1);
         createTable();
     }
@@ -57,14 +53,14 @@ class DataConnector {
         connection.createStatement().executeUpdate(sql);
     }
 
-    void disconnect() throws SQLException {
+    public void disconnect() throws SQLException {
         if (connection != null && !connection.isClosed()) {
             this.setBotStatus(0);
             connection.close();
         }
     }
 
-    String getPassword(final String login) throws SQLException {
+    public String getPassword(final String login) throws SQLException {
         final ResultSet query = connection.createStatement().executeQuery("SELECT Pass FROM Credentials WHERE Login='" + login + "'");
         if (query.next()) {
             return query.getString("Pass");
@@ -73,16 +69,16 @@ class DataConnector {
         }
     }
 
-    void insert(final Event event) {
+    public void insert(final Event event) {
         final String sql = event.getStatement(table);
         try {
             connection.createStatement().executeUpdate(sql);
         } catch (SQLException e) {
-            log.error("Error inserting event: " + event.getEventName(), e);
+            throw new IllegalArgumentException("Unable to insert event into database:\n" + event.toString(), e);
         }
     }
 
-    List<Reaction> react(final Action action) {
+    public List<Reaction> react(final Action action) {
         final List<Reaction> reactionList = new ArrayList<>();
         try {
             final ResultSet resultSet = connection.createStatement().executeQuery(action.getStatement());
@@ -113,7 +109,7 @@ class DataConnector {
         try {
             connection.createStatement().executeUpdate(sql);
         } catch (final SQLException sqle) {
-            sqle.printStackTrace();
+            throw new IllegalArgumentException("Unable to insert bot status into database: " + online);
         }
     }
 

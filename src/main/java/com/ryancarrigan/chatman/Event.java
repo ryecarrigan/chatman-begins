@@ -1,14 +1,9 @@
 package com.ryancarrigan.chatman;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Created by Suave Peanut on 2014.12.27.
  */
-class Event {
-
-    private final static Logger log = LoggerFactory.getLogger(Event.class);
+public class Event {
 
     private final String channel;
     private final String data;
@@ -19,9 +14,9 @@ class Event {
     private final Number number;
     private final String target;
 
-    Event(final String eventName, final String channel, final String login, final String hostname,
+    public Event(final IrkEvent event, final String channel, final String login, final String hostname,
           final String nick, final String target, final String data, final Number number) {
-        this.eventName = eventName;
+        this.eventName = event.getName();
         this.channel   = channel;
         this.login     = login;
         this.hostname  = hostname;
@@ -31,19 +26,11 @@ class Event {
         this.number    = number;
     }
 
-    String getStatement(final String table) {
+    public String getStatement(final String table) {
         return String.format("INSERT INTO `%s` (EventName, Channel, Login, HostName, Nick, Target, Data, Number) "
                         + "values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", table, getEventName(),
                 getChannel(), getLogin(), getHostname(), getNick(), getTarget(), getData(), getNumber())
                 .replaceAll("\'NULL\'", "NULL");
-    }
-
-    String getLogMessage() {
-        return String.format("%s%s%s%s",
-                (channel == null) ? "" : "[" + channel + "] ",
-                eventName,
-                (nick == null) ? "" : " - " + nick,
-                (data == null) ? "" : ": " + data);
     }
 
     private String get(final Object parameter) {

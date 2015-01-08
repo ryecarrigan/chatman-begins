@@ -5,12 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ryancarrigan</groupId>
-    <artifactId>ChatmanBegins</artifactId>
+    <artifactId>chatman</artifactId>
     <version>1.0</version>
-    <packaging>jar</packaging>
-    <scm>
-        <developerConnection>scm:git:file://${project.basedir}/</developerConnection>
-    </scm>
+
     <build>
         <defaultGoal>clean package</defaultGoal>
         <plugins>
@@ -30,17 +27,9 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.ryancarrigan.chatman.PeabotLauncher</mainClass>
+                            <mainClass>com.ryancarrigan.chatman.IrkLauncher</mainClass>
                         </manifest>
                     </archive>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-scm-plugin</artifactId>
-                <version>1.9.2</version>
-                <configuration>
-                    <connectionType>developerConnection</connectionType>
                 </configuration>
             </plugin>
             <plugin>
@@ -59,22 +48,6 @@
                     <finalName>peabot</finalName>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>buildnumber-maven-plugin</artifactId>
-                <version>1.3</version>
-                <executions>
-                    <execution>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>create</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <doCheck>true</doCheck>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
@@ -83,6 +56,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.7.9</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
