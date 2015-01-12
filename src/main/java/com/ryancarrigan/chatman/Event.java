@@ -5,7 +5,6 @@ package com.ryancarrigan.chatman;
  */
 public class Event {
 
-    private final String channel;
     private final String data;
     private final String eventName;
     private final String hostname;
@@ -13,32 +12,33 @@ public class Event {
     private final String nick;
     private final Number number;
     private final String target;
+    private final String timestamp;
 
-    public Event(final IrkEvent event, final String channel, final String login, final String hostname,
-          final String nick, final String target, final String data, final Number number) {
+    public Event(final IrkEvent event, final String login, final String hostname,
+                 final String nick, final String target, final String data, final Number number) {
         this.eventName = event.getName();
-        this.channel   = channel;
         this.login     = login;
         this.hostname  = hostname;
         this.nick      = nick;
         this.target    = target;
         this.data      = data;
         this.number    = number;
+//        this.timestamp = new Timestamp(System.currentTimeMillis()).toString();
+        this.timestamp = null;
     }
 
     public String getStatement(final String table) {
-        return String.format("INSERT INTO `%s` (EventName, Channel, Login, HostName, Nick, Target, Data, Number) "
-                        + "values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", table, getEventName(),
-                getChannel(), getLogin(), getHostname(), getNick(), getTarget(), getData(), getNumber())
-                .replaceAll("\'NULL\'", "NULL");
+        return String.format("INSERT INTO `%s` (`EventName`, `Login`, `HostName`, `Nick`, `Target`, `Data`, `Number`) "
+                + "values %s", table, getValues());
+    }
+
+    public String getValues() {
+        return String.format("('%s', '%s', '%s', '%s', '%s', '%s', '%s')", getEventName(), getLogin(),
+                getHostname(), getNick(), getTarget(), getData(), getNumber()).replaceAll("\'NULL\'", "NULL");
     }
 
     private String get(final Object parameter) {
         return (null == parameter) ? "NULL" : parameter.toString();
-    }
-
-    public String getChannel() {
-        return get(this.channel);
     }
 
     public String getData() {
@@ -65,8 +65,20 @@ public class Event {
         return get(this.number);
     }
 
+    public String getRawDate() {
+        return this.data;
+    }
+
     public String getTarget() {
         return get(this.target);
+    }
+
+    public String getTimestamp() {
+        return get(timestamp);
+    }
+
+    public String toString() {
+        return this.getValues();
     }
 
 }

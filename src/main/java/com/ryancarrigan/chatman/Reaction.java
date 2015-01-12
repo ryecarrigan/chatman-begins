@@ -9,71 +9,43 @@ import java.util.regex.Pattern;
  */
 public class Reaction {
 
-    private final Integer count;
-    private final String  action;
-    private final String  channel;
-    private final String  eventName;
-    private final String  nick;
-    private final String  reaction;
-    private final String  target;
+    private final String   reactionType;
+    private final String[] nicks;
+    private final String   trigger;
+    private final String   reaction;
+    private final Integer  count;
 
-    public Reaction(final String channel, final String data, final String eventName, final String nick,
-                    final String target, final String reaction, final Integer count) {
-        this.channel   = channel;
-        this.count     = count;
-        this.action    = data;
-        this.eventName = eventName;
-        this.nick      = nick;
-        this.reaction  = reaction;
-        this.target    = target;
-    }
-
-    public String getStatement() {
-        return String.format("SELECT * FROM Reactions WHERE EventName='%s' AND Channel='%s'",getEventName(), getChannel());
-    }
-
-    private String get(final Object parameter) {
-        return (null == parameter) ? "NULL" : parameter.toString();
-    }
-
-    public String getAction() {
-        return get(this.action);
-    }
-
-    public String getChannel() {
-        return get(this.channel);
+    public Reaction(final String reactionType, final String nicks, final String trigger, final String reaction,
+                    final Integer count) {
+        this.reactionType = reactionType;
+        this.nicks        = nicks.split("\\|\\|");
+        this.trigger      = trigger;
+        this.reaction     = reaction;
+        this.count        = count;
     }
 
     public Integer getCount() {
         return (count == null) ? 0 : count;
     }
 
-    public String getEventName() {
-        return get(this.eventName);
-    }
-
-    public String getNick() {
-        return get(this.nick);
-    }
-
-    private List<String> getNicks() {
-        return Arrays.asList(getNick().split("\\|\\|"));
-    }
-
     public String getReaction() {
         return this.reaction;
     }
 
-    public String getTarget() {
-        return get(this.target);
+    public String getReactionType() {
+        return this.reactionType;
     }
 
-    public boolean hasMatchingMessage(final Action command) {
-        return Pattern.compile(this.getAction()).matcher(command.getAction()).find();
+    public boolean isTriggeredBy(final Action command) {
+        return hasMatchingMessage(command) && hasMatchingNick(command);
     }
 
-    public boolean hasMatchingNick(final Action command) {
-        final List<String> nicks = getNicks();
+    private boolean hasMatchingMessage(final Action command) {
+        return Pattern.compile(this.trigger).matcher(command.getAction()).find();
+    }
+
+    private boolean hasMatchingNick(final Action command) {
+        final List<String> nicks = Arrays.asList(this.nicks);
         return nicks.contains(command.getNick()) || nicks.contains("NULL");
     }
 

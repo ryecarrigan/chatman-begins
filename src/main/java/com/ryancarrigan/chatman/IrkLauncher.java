@@ -1,6 +1,8 @@
 package com.ryancarrigan.chatman;
 
 import com.ryancarrigan.irksome.DataLogger;
+import com.ryancarrigan.irksome.Reactor;
+import com.ryancarrigan.irksome.UserLogger;
 import com.ryancarrigan.peabot.Peabot;
 
 /**
@@ -9,13 +11,7 @@ import com.ryancarrigan.peabot.Peabot;
 public class IrkLauncher {
 
     public static void main(final String[] args) {
-        if (args.length < 3) {
-            throw new IllegalArgumentException("Not enough arguments. <channel name> <bot name> <log/react>");
-        } else {
-            System.out.println(String.format("Starting bot %s in channel #%s in %s mode.", args[1], args[0], args[2]));
-        }
-
-        final Irksome irksome = buildIrkBot(args);
+        final Irksome irksome = buildIrkBot(args[0]);
         prepareForImpact(irksome);
         irksome.start();
     }
@@ -28,15 +24,23 @@ public class IrkLauncher {
         }));
     }
 
-    private static Irksome buildIrkBot(final String[] args) {
-        String db = "chatman_db", dbLogin = "chatman", dbPass = "ch4tp455";
-        switch (args[2]) {
+    private static Irksome buildIrkBot(final String mode) {
+        final String channel = System.getProperty("chatman.channel"),
+                     nick    = System.getProperty("chatman.botname");
+        if (channel.length() < 2 || nick.length() < 2) {
+            throw new IllegalArgumentException("Double-check your channel and bot name.");
+        }
+        switch (mode) {
+            case "all":
+                return new Peabot(channel, nick);
             case "log":
-                return new DataLogger(args[0], args[1], db, dbLogin, dbPass);
+                return new DataLogger(channel, nick);
+            case "user":
+                return new UserLogger(channel, nick);
             case "react":
-                return new Peabot(args[0], args[1], db, dbLogin, dbPass);
+                return new Reactor(channel, nick);
             default:
-                throw new IllegalArgumentException("Illegal command: " + args[2]);
+                throw new IllegalArgumentException("Illegal command: " + mode);
         }
     }
 

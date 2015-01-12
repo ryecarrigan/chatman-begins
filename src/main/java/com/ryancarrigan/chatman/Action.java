@@ -6,43 +6,29 @@ package com.ryancarrigan.chatman;
 public class Action {
 
     private final String  action;
-    private final String  channel;
     private final String  eventName;
     private final String  nick;
-    private final String  target;
 
-    public Action(final String channel, final String data, final String eventName, final String nick,
-                  final String target) {
-        this.channel   = channel;
+    public Action(final String data, final String eventName, final String nick) {
         this.action    = data;
         this.eventName = eventName;
         this.nick      = nick;
-        this.target    = target;
     }
 
-    public Action(final String channel, final Event event) {
-        this(channel, event.getData(), event.getEventName(), event.getNick(), event.getTarget());
-    }
-
-    public String getStatement() {
-        return String.format("SELECT * FROM Reactions WHERE EventName='%s' AND Channel='%s'",
-                this.eventName, this.channel);
-    }
-
-    private String get(final Object parameter) {
-        return (null == parameter) ? "NULL" : parameter.toString();
+    public Action(final Event event) {
+        this(event.getRawDate(), event.getEventName(), event.getNick());
     }
 
     public String getAction() {
-        return get(this.action);
+        return this.action;
+    }
+
+    public String getEventName() {
+        return eventName;
     }
 
     public String getNick() {
-        return get(this.nick);
-    }
-
-    public String getTarget() {
-        return get(this.target);
+        return this.nick;
     }
 
 }
