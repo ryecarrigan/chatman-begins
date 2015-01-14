@@ -28,6 +28,7 @@ public class Datman {
     private static String     database;
     private static String     dbPass;
     private static String     dbUser;
+    private static String     dbHost;
 
     static {
         final Properties properties = System.getProperties();
@@ -36,6 +37,7 @@ public class Datman {
         database = properties.getProperty("chatman.database");
         dbPass   = properties.getProperty("chatman.dbpass");
         dbUser   = properties.getProperty("chatman.dbuser");
+        dbHost   = properties.getProperty("chatman.dbhost");
         logger   = LoggerFactory.getLogger(Datman.class);
         queries  = loadProperties("query.properties");
     }
@@ -55,7 +57,7 @@ public class Datman {
     }
 
     private void connect() {
-        final String host = String.format("jdbc:mysql://localhost:3306/%s?characterEncoding=UTF-8", database);
+        final String host = String.format("jdbc:mysql://%s:3306/%s?useUnicode=true&characterEncoding=utf-8", dbHost, database);
         try {
             this.connection = DriverManager.getConnection(host, this.credentials);
         } catch (final SQLException e) {
@@ -66,10 +68,9 @@ public class Datman {
     private void disconnect() {
         try {
             if (this.connection != null && this.connection.isValid(2)) this.connection.close();
-        } catch (final SQLException e) {
-            throw new IllegalStateException("Unable to close database connection.", e);
+        } catch (final SQLException sqle) {
+            logger.error("Unable to disconnect from database.", sqle);
         }
-        datman = null;
     }
 
     public static void quit() {
@@ -95,16 +96,19 @@ public class Datman {
         try {
             return this.connection.createStatement().executeQuery(command);
         } catch (final SQLException e) {
-            throw new IllegalStateException("Error executing query on database.", e);
+            logger.info(command);
+            logger.error("Error executing query on database.", e);
         }
+        return null;
     }
 
-    private int update(final String key, final Object... args) {
+    private void update(final String key, final Object... args) {
         final String command = String.format(queries.getProperty(key), args);
         try {
-            return this.connection.createStatement().executeUpdate(command);
+            this.connection.createStatement().executeUpdate(command);
         } catch (final SQLException e) {
-            throw new IllegalStateException("Error executing update on database.", e);
+            logger.info(command);
+            logger.error("Error executing update on database.", e);
         }
     }
 
@@ -124,8 +128,8 @@ public class Datman {
             } else {
                 throw new IllegalArgumentException("Input stream was null. Check the queries file.");
             }
-        } catch (final IOException e) {
-            e.printStackTrace();
+        } catch (final IOException ioe) {
+            logger.error("Error loading properties file.", ioe);
         }
         return properties;
     }
@@ -133,7 +137,7 @@ public class Datman {
     public static String getIrcPassword(final String login) {
         final ResultSet password = getInstance().query("GetPassword", login);
         try {
-            if (password.next()) {
+            if (password != null && password.next()) {
                 return password.getString("Pass");
             } else {
                 throw new IllegalArgumentException("No password for IRC user: " + login);
@@ -147,50 +151,52 @@ public class Datman {
         final List<Reaction> reactionList = new ArrayList<>();
         try {
             final ResultSet resultSet = getInstance().query("GetReactions", action.getEventName(), channel, botName);
-            while (resultSet.next()) {
-                final Reaction newReaction = new Reaction(
-                        resultSet.getString("ReactionType"),
-                        resultSet.getString("Nick"),
-                        resultSet.getString("Trigger"),
-                        resultSet.getString("Reaction"),
-                        resultSet.getInt("Count")
-                );
-                reactionList.add(newReaction);
+            if (resultSet != null) {
+                while (resultSet.next()) {
+                    final Reaction newReaction = new Reaction(
+                            resultSet.getString("ReactionType"),
+                            resultSet.getString("Nick"),
+                            resultSet.getString("Regex"),
+                            resultSet.getString("Reaction"),
+                            resultSet.getInt("Times")
+                    );
+                    reactionList.add(newReaction);
+                }
             }
         } catch (final SQLException sqle) {
-            sqle.printStackTrace();
+            logger.error(sqle.getMessage());
         }
         return reactionList;
     }
 
     public static Map<String, String> getTwitterCredentials(final String login) {
+        final Map<String, String> credentials = new HashMap<>();
         final ResultSet twitter = getInstance().query("GetTwitter", login);
         try {
-            if (twitter.next()) {
-                final Map<String, String> credentials = new HashMap<>();
+            if (twitter != null && twitter.next()) {
                 credentials.put("ConsumerKey",    twitter.getString("ConsumerKey"));
                 credentials.put("ConsumerSecret", twitter.getString("ConsumerSecret"));
                 credentials.put("AccessToken",    twitter.getString("AccessToken"));
                 credentials.put("AccessSecret",   twitter.getString("AccessSecret"));
-                return credentials;
             } else {
                 throw new IllegalArgumentException("No credentials for Twitter user: " + login);
             }
-        } catch (final SQLException e) {
-            throw new IllegalStateException("Error querying database for Twitter credentials.", e);
+        } catch (final SQLException sqle) {
+            logger.error("Error querying database for Twitter credentials.", sqle);
         }
+        return credentials;
     }
 
     public static void insertEvents(final List<Event> events) {
         getInstance().update("InsertEvents", channel, valuesToString(events));
     }
 
-    public static void setBotStatus(final int status) {
-        getInstance().update("UpdateBotStatus", channel, status, status);
+    public static void setAllOffline() {
+        getInstance().update("SetAllOffline", channel);
     }
 
-    public static void setNickStatus(final String nick, final String online) {
-        setNickStatus(Arrays.asList(new Nick(nick)), online);
+    public static void setBotStatus(final int status) {
+        getInstance().update("UpdateBotStatus", channel, status, status);
     }
 
     public static void setNickStatus(final List<Nick> nicks, final String online) {

@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by Suave Peanut on 2015.1.7.
  */
-public class Reactor extends Irksome {
+public class Reactor extends IrcBot {
 
     private Logger                   logger = LoggerFactory.getLogger(Reactor.class);
     private Queue<String>            messageQueue = new LinkedList<>();
@@ -38,7 +38,7 @@ public class Reactor extends Irksome {
     }
 
     @Override
-    public void receiveEvent(final IrkEvent event, final String login, final String hostName, final String nick,
+    public void receiveEvent(final EventName event, final String login, final String hostName, final String nick,
                              final String target, final String data, final Number number) {
         final Event irk = new Event(event, login, hostName, nick, target, data, number);
         react(irk);

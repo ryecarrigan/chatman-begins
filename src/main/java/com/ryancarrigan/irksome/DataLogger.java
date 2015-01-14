@@ -1,8 +1,8 @@
 package com.ryancarrigan.irksome;
 
 import com.ryancarrigan.chatman.Event;
-import com.ryancarrigan.chatman.IrkEvent;
-import com.ryancarrigan.chatman.Irksome;
+import com.ryancarrigan.chatman.EventName;
+import com.ryancarrigan.chatman.IrcBot;
 import com.ryancarrigan.data.Datman;
 import org.jibble.pircbot.IrcException;
 import org.slf4j.Logger;
@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by Suave Peanut on 2015.1.6.
  */
-public class DataLogger extends Irksome {
+public class DataLogger extends IrcBot {
 
     private Logger      logger = LoggerFactory.getLogger(DataLogger.class);
     private List<Event> messageQueue = new LinkedList<>();
@@ -48,7 +48,7 @@ public class DataLogger extends Irksome {
     }
 
     @Override
-    public void receiveEvent(final IrkEvent event, final String login, final String hostName, final String nick, final String target, final String data, final Number number) {
+    public void receiveEvent(final EventName event, final String login, final String hostName, final String nick, final String target, final String data, final Number number) {
         final Event irk = new Event(event, login, hostName, nick, target, data, number);
         messageQueue.add(irk);
     }

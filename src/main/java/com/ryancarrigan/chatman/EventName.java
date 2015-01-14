@@ -3,7 +3,7 @@ package com.ryancarrigan.chatman;
 /**
  * Created by Suave Peanut on 2015.1.6.
  */
-public enum IrkEvent {
+public enum EventName {
 
     ACTION("Action"),
     CHANNEL_INFO("ChannelInfo"),
@@ -37,7 +37,7 @@ public enum IrkEvent {
 
     private final String name;
 
-    IrkEvent(final String name) {
+    EventName(final String name) {
         this.name = name;
     }
 

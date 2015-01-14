@@ -13,7 +13,7 @@
         <param name="file" value="log.out"/>
         <param name="immediateFlush" value="true"/>
         <param name="threshold" value="debug"/>
-        <param name="append" value="false"/>
+        <param name="append" value="true"/>
         <layout class="org.apache.log4j.PatternLayout">
             <param name="conversionPattern" value="%d %m%n"/>
         </layout>
@@ -21,7 +21,7 @@
 
     <root>
         <priority value = "debug" />
-        <appender-ref ref = "console" />
+        <!--<appender-ref ref = "console" />-->
         <appender-ref ref = "file" />
     </root>
 

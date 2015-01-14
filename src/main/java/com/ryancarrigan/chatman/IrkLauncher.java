@@ -1,47 +1,73 @@
 package com.ryancarrigan.chatman;
 
-import com.ryancarrigan.irksome.DataLogger;
-import com.ryancarrigan.irksome.Reactor;
-import com.ryancarrigan.irksome.UserLogger;
+import com.ryancarrigan.peabot.Botmode;
 import com.ryancarrigan.peabot.Peabot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 
 /**
  * Created by Suave Peanut on 2015.1.6.
  */
 public class IrkLauncher {
 
+    private static final Logger logger = LoggerFactory.getLogger(IrkLauncher.class);
+
     public static void main(final String[] args) {
-        final Irksome irksome = buildIrkBot(args[0]);
-        prepareForImpact(irksome);
-        irksome.start();
+        loadProperties("config.properties");
+        final IrcBot ircBot = buildIrkBot();
+        prepareForImpact(ircBot);
+        ircBot.start();
     }
 
-    private static void prepareForImpact(final Irksome irksome) {
+    private static Properties loadProperties(final String fileName) {
+        final Properties properties = new Properties();
+        try {
+            final InputStream inputStream = new FileInputStream(fileName);
+            System.getProperties().load(inputStream);
+            inputStream.close();
+        } catch (final IOException e) {
+            throw new RuntimeException("Config file not found.");
+        }
+        return properties;
+    }
+
+    private static void prepareForImpact(final IrcBot ircBot) {
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             public void run() {
-                irksome.quit();
+                ircBot.quit();
             }
         }));
     }
 
-    private static Irksome buildIrkBot(final String mode) {
-        final String channel = System.getProperty("chatman.channel"),
-                     nick    = System.getProperty("chatman.botname");
-        if (channel.length() < 2 || nick.length() < 2) {
-            throw new IllegalArgumentException("Double-check your channel and bot name.");
-        }
+    private static IrcBot buildIrkBot() {
+        final String channel = System.getProperty("chatman.channel");
+        final String nick    = System.getProperty("chatman.botname");
+        final String mode    = System.getProperty("chatman.mode");
+        logger.info("Starting new bot in mode: " + mode);
+
+        Botmode botmode;
         switch (mode) {
             case "all":
-                return new Peabot(channel, nick);
+                botmode = Botmode.ALL;
+                break;
             case "log":
-                return new DataLogger(channel, nick);
+                botmode = Botmode.LOG;
+                break;
             case "user":
-                return new UserLogger(channel, nick);
+                botmode = Botmode.USER;
+                break;
             case "react":
-                return new Reactor(channel, nick);
+                botmode = Botmode.REACT;
+                break;
             default:
-                throw new IllegalArgumentException("Illegal command: " + mode);
+                botmode = Botmode.LOG;
         }
+        return new Peabot(channel, nick, botmode);
     }
 
 }

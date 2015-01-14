@@ -1,5 +1,8 @@
 package com.ryancarrigan.chatman;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -8,6 +11,8 @@ import java.util.regex.Pattern;
  * Created by Suave Peanut on 2015.1.1.
  */
 public class Reaction {
+
+    private final static Logger logger = LoggerFactory.getLogger(Reaction.class);
 
     private final String   reactionType;
     private final String[] nicks;
@@ -18,7 +23,7 @@ public class Reaction {
     public Reaction(final String reactionType, final String nicks, final String trigger, final String reaction,
                     final Integer count) {
         this.reactionType = reactionType;
-        this.nicks        = nicks.split("\\|\\|");
+        this.nicks        = (nicks == null) ? new String[]{"NULL"} : nicks.split("\\|\\|");
         this.trigger      = trigger;
         this.reaction     = reaction;
         this.count        = count;

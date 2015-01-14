@@ -27,7 +27,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.ryancarrigan.chatman.IrkLauncher</mainClass>
+                            <mainClass>com.ryancarrigan.peabot.PeabotLauncher</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

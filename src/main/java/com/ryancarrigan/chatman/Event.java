@@ -14,7 +14,7 @@ public class Event {
     private final String target;
     private final String timestamp;
 
-    public Event(final IrkEvent event, final String login, final String hostname,
+    public Event(final EventName event, final String login, final String hostname,
                  final String nick, final String target, final String data, final Number number) {
         this.eventName = event.getName();
         this.login     = login;
