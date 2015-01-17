@@ -7,10 +7,6 @@ import com.ryancarrigan.chatman.Reaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -20,122 +16,29 @@ import java.util.*;
  */
 public class Datman {
 
-    private static Datman     datman = null;
-    private static Logger     logger;
-    private static Properties queries;
-    private static String     botName;
-    private static String     channel;
-    private static String     database;
-    private static String     dbPass;
-    private static String     dbUser;
-    private static String     dbHost;
+    private static Logger logger = LoggerFactory.getLogger(Datman.class);
 
-    static {
-        final Properties properties = System.getProperties();
-        botName  = properties.getProperty("chatman.botname");
-        channel  = properties.getProperty("chatman.channel");
-        database = properties.getProperty("chatman.database");
-        dbPass   = properties.getProperty("chatman.dbpass");
-        dbUser   = properties.getProperty("chatman.dbuser");
-        dbHost   = properties.getProperty("chatman.dbhost");
-        logger   = LoggerFactory.getLogger(Datman.class);
-        queries  = loadProperties("query.properties");
-    }
+    private String         botName;
+    private String         channel;
 
-    private Connection connection;
-    private Properties credentials = new Properties();
-
-    private Datman() {
-        setAll();
-        connect();
+    public Datman(final String botName, final String channel) {
+        this.botName    = botName;
+        this.channel    = channel.replace("#", "");
         createTables();
     }
 
     private void createTables() {
-        update("CreateEventTable", channel);
-        update("CreateUserTable",  channel);
+        getInstance().update("CreateEventTable", channel);
+        getInstance().update("CreateUserTable",  channel);
     }
 
-    private void connect() {
-        final String host = String.format("jdbc:mysql://%s:3306/%s?useUnicode=true&characterEncoding=utf-8", dbHost, database);
-        try {
-            this.connection = DriverManager.getConnection(host, this.credentials);
-        } catch (final SQLException e) {
-            throw new IllegalStateException("Unable to connect to database.", e);
-        }
+    private DataConnection getInstance() {
+        return new DataConnection();
     }
 
-    private void disconnect() {
-        try {
-            if (this.connection != null && this.connection.isValid(2)) this.connection.close();
-        } catch (final SQLException sqle) {
-            logger.error("Unable to disconnect from database.", sqle);
-        }
-    }
-
-    public static void quit() {
-        getInstance().disconnect();
-    }
-
-    private void setAll() {
-        if (channel == null) {
-            throw new IllegalArgumentException("The chatman.channel property has not been set.");
-        } else if (database == null) {
-            throw new IllegalArgumentException("The chatman.database property has not been set.");
-        } else if (dbPass == null) {
-            throw new IllegalArgumentException("The chatman.dbpass property has not been set.");
-        } else if (dbUser == null) {
-            throw new IllegalArgumentException("The chatman.dbuser property has not been set.");
-        }
-        this.credentials.put("user",     dbUser);
-        this.credentials.put("password", dbPass);
-    }
-
-    private ResultSet query(final String key, final Object... args) {
-        final String command = String.format(queries.getProperty(key), args);
-        try {
-            return this.connection.createStatement().executeQuery(command);
-        } catch (final SQLException e) {
-            logger.info(command);
-            logger.error("Error executing query on database.", e);
-        }
-        return null;
-    }
-
-    private void update(final String key, final Object... args) {
-        final String command = String.format(queries.getProperty(key), args);
-        try {
-            this.connection.createStatement().executeUpdate(command);
-        } catch (final SQLException e) {
-            logger.info(command);
-            logger.error("Error executing update on database.", e);
-        }
-    }
-
-    private static Datman getInstance() {
-        if (null == datman)
-            datman = new Datman();
-        return datman;
-    }
-
-    private static Properties loadProperties(final String fileName) {
-        final Properties properties = new Properties();
-        try {
-            final InputStream inputStream = ClassLoader.getSystemResourceAsStream(fileName);
-            if (inputStream != null) {
-                properties.load(inputStream);
-                inputStream.close();
-            } else {
-                throw new IllegalArgumentException("Input stream was null. Check the queries file.");
-            }
-        } catch (final IOException ioe) {
-            logger.error("Error loading properties file.", ioe);
-        }
-        return properties;
-    }
-
-    public static String getIrcPassword(final String login) {
-        final ResultSet password = getInstance().query("GetPassword", login);
+    public String getIrcPassword(final String login) {
+        final DataConnection connection = getInstance();
+        final ResultSet password = connection.query("GetPassword", login);
         try {
             if (password != null && password.next()) {
                 return password.getString("Pass");
@@ -144,13 +47,16 @@ public class Datman {
             }
         } catch (final SQLException e) {
             throw new IllegalStateException("Error querying database for password.", e);
+        } finally {
+            connection.disconnect();
         }
     }
 
-    public static List<Reaction> getReactions(final Action action) {
+    public List<Reaction> getReactions(final Action action) {
+        final DataConnection connection = getInstance();
         final List<Reaction> reactionList = new ArrayList<>();
         try {
-            final ResultSet resultSet = getInstance().query("GetReactions", action.getEventName(), channel, botName);
+            final ResultSet resultSet = connection.query("GetReactions", action.getEventName(), channel, botName);
             if (resultSet != null) {
                 while (resultSet.next()) {
                     final Reaction newReaction = new Reaction(
@@ -165,13 +71,16 @@ public class Datman {
             }
         } catch (final SQLException sqle) {
             logger.error(sqle.getMessage());
+        } finally {
+            connection.disconnect();
         }
         return reactionList;
     }
 
-    public static Map<String, String> getTwitterCredentials(final String login) {
+    public Map<String, String> getTwitterCredentials(final String login) {
+        final DataConnection connection = getInstance();
         final Map<String, String> credentials = new HashMap<>();
-        final ResultSet twitter = getInstance().query("GetTwitter", login);
+        final ResultSet twitter = connection.query("GetTwitter", login);
         try {
             if (twitter != null && twitter.next()) {
                 credentials.put("ConsumerKey",    twitter.getString("ConsumerKey"));
@@ -179,31 +88,33 @@ public class Datman {
                 credentials.put("AccessToken",    twitter.getString("AccessToken"));
                 credentials.put("AccessSecret",   twitter.getString("AccessSecret"));
             } else {
-                throw new IllegalArgumentException("No credentials for Twitter user: " + login);
+                logger.error("No credentials for Twitter user: " + login);
             }
         } catch (final SQLException sqle) {
             logger.error("Error querying database for Twitter credentials.", sqle);
+        } finally {
+            connection.disconnect();
         }
         return credentials;
     }
 
-    public static void insertEvents(final List<Event> events) {
+    public void insertEvents(final Collection<Event> events) {
         getInstance().update("InsertEvents", channel, valuesToString(events));
     }
 
-    public static void setAllOffline() {
+    public void setAllOffline() {
         getInstance().update("SetAllOffline", channel);
     }
 
-    public static void setBotStatus(final int status) {
+    public void setBotStatus(final int status) {
         getInstance().update("UpdateBotStatus", channel, status, status);
     }
 
-    public static void setNickStatus(final List<Nick> nicks, final String online) {
+    public void setNickStatus(final Collection<Nick> nicks, final String online) {
         getInstance().update("UpdateNickStatus", channel, valuesToString(nicks, online), online);
     }
 
-    private static String valuesToString(final Collection<?> collection, final Object... args) {
+    private String valuesToString(final Collection<?> collection, final Object... args) {
         final StringBuilder values = new StringBuilder();
         final Iterator<?> iterator = collection.iterator();
         while (iterator.hasNext()) {

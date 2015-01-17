@@ -27,11 +27,6 @@ public class Event {
         this.timestamp = null;
     }
 
-    public String getStatement(final String table) {
-        return String.format("INSERT INTO `%s` (`EventName`, `Login`, `HostName`, `Nick`, `Target`, `Data`, `Number`) "
-                + "values %s", table, getValues());
-    }
-
     public String getValues() {
         return String.format("('%s', '%s', '%s', '%s', '%s', '%s', '%s')", getEventName(), getLogin(),
                 getHostname(), getNick(), getTarget(), getData(), getNumber()).replaceAll("\'NULL\'", "NULL");
@@ -42,7 +37,9 @@ public class Event {
     }
 
     public String getData() {
-        return get(this.data).replace("'", "\\'");
+        return get(this.data)
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
     }
 
     public String getEventName() {

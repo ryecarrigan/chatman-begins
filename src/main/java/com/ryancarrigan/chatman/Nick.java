@@ -5,16 +5,20 @@ package com.ryancarrigan.chatman;
  */
 public class Nick {
 
-    private final String nick;
-    private final String online;
+    private final String  nick;
+    private final boolean online;
 
-    public Nick(final String nick) {
+    public Nick(final String nick, final boolean online) {
         this.nick   = nick;
-        this.online = "1";
+        this.online = online;
     }
 
     String getValues() {
-        return String.format("('%s', %s)", this.nick, this.online);
+        return String.format("('%s', %s)", this.nick, getOnline());
+    }
+
+    String getOnline() {
+        return (online) ? "1" : "0";
     }
 
     @Override

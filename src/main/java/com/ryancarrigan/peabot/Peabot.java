@@ -27,13 +27,73 @@ public class Peabot extends IrcBot {
     private static final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private final Botmode botmode;
-    private List<Event>   loggingQueue = new LinkedList<>();
+    private Datman        datman;
+    private Deque<Event>  loggingQueue = new LinkedList<>();
     private Queue<String> messageQueue = new LinkedList<>();
+    private Queue<Nick>   joinQueue    = new LinkedList<>();
+    private Queue<Nick>   partQueue    = new LinkedList<>();
     private Twitter       twitter;
 
     public Peabot(final String channel, final String login, final Botmode botmode) {
         super(channel, login);
         this.botmode = botmode;
+        this.datman  = datman();
+    }
+
+    /**
+     * Start the necessary services and join the configured channel.
+     */
+    @Override
+    public void start() {
+        // Schedule the message/logging services and log in to Twitter if reactions are enabled.
+        switch (botmode) {
+            case ALL:
+                // For ALL mode, schedule the log and message services and set Twitter.
+                scheduleLogService();
+                scheduleUserServices();
+            case REACT:
+                // For REACT mode, don't schedule logging.
+                scheduleMessageService();
+                setTwitter();
+                break;
+            case LOG:
+                // For LOG mode, only schedule logging.
+                scheduleLogService();
+                scheduleUserServices();
+                break;
+        }
+        scheduleQueueReport();
+
+        try {
+            // Join the configured IRC channel.
+            joinChannel();
+
+            // Once we're in, set this bot's status to online for that channel.
+            datman.setBotStatus(1);
+        } catch (IrcException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Shut down gracefully by disconnecting from the database and leaving the IRC server.
+     */
+    @Override
+    public void quit() {
+        switch (botmode) {
+            // If we are logging, then disconnecting would result in unknown user states.
+            // Therefore, set everybody offline.
+            case ALL:
+            case USER:
+                datman.setAllOffline();
+                break;
+        }
+
+        // Record this bot offline for this channel.
+        datman.setBotStatus(0);
+
+        // And disconnect from the IRC server.
+        disconnect();
     }
 
     private void scheduleLogService() {
@@ -42,12 +102,14 @@ public class Peabot extends IrcBot {
             @Override
             public void run() {
                 // Check if there are events waiting to be logged.
-                if (!loggingQueue.isEmpty()) {
+                final int size = loggingQueue.size();
+                if (size > 0) {
                     // Send all queued events to the database.
-                    Datman.insertEvents(loggingQueue);
+                    datman().insertEvents(loggingQueue);
                     // Clear the queue after events have been logged.
                     loggingQueue.clear();
                 }
+                logger.info(String.format("Recorded %d events.", size));
             }
         };
 
@@ -77,28 +139,57 @@ public class Peabot extends IrcBot {
         executor.scheduleAtFixedRate(messaging, 0, 750, TimeUnit.MILLISECONDS);
     }
 
-    /**
-     * Shut down gracefully by disconnecting from the database and leaving the IRC server.
-     */
-    @Override
-    public void quit() {
-        switch (botmode) {
-            // If we are logging, then disconnecting would result in unknown user states.
-            // Therefore, set everybody offline.
-            case ALL:
-            case USER:
-                Datman.setAllOffline();
-                break;
-        }
+    private void scheduleQueueReport() {
+        // Define a runnable that can be executed on a schedule.
+        final Runnable queueReporter = new Runnable() {
+            @Override
+            public void run() {
+                final String messages = String.format(
+                        "<QUEUES> L:%d M:%d J:%d P:%d",
+                        loggingQueue.size(), messageQueue.size(),joinQueue.size(), partQueue.size());
+                logger.info(messages);
+            }
+        };
 
-        // Record this bot offline for this channel.
-        Datman.setBotStatus(0);
+        // Show queue status once every few minutes.
+        executor.scheduleAtFixedRate(queueReporter, 5, 5, TimeUnit.MINUTES);
+    }
 
-        // Disconnect from the database.
-        Datman.quit();
+    private void scheduleUserServices() {
+        // Define a runnable that can be executed on a schedule.
+        final Runnable joinLogging = new Runnable() {
+            @Override
+            public void run() {
+                // Check if there are events waiting to be logged.
+                if (!joinQueue.isEmpty()) {
+                    // Send all queued events to the database.
+                    datman().setNickStatus(joinQueue, "1");
+                    // Clear the queue after events have been logged.
+                    joinQueue.clear();
+                }
+            }
+        };
 
-        // And disconnect from the IRC server.
-        disconnect();
+        final Runnable partLogging = new Runnable() {
+            @Override
+            public void run() {
+                // Check if there are events waiting to be logged.
+                if (!partQueue.isEmpty()) {
+                    // Send all queued events to the database.
+                    datman().setNickStatus(partQueue, "0");
+                    // Clear the queue after events have been logged.
+                    partQueue.clear();
+                }
+            }
+        };
+
+        // Schedule joins and parts to be logged alternately every 30 seconds.
+        executor.scheduleAtFixedRate(joinLogging, 0,  60, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(partLogging, 30, 60, TimeUnit.SECONDS);
+    }
+
+    private Datman datman() {
+        return new Datman(getName(), getChannel());
     }
 
     /**
@@ -144,11 +235,11 @@ public class Peabot extends IrcBot {
         switch (event) {
             case JOIN:
                 // On Join, set the user to online.
-                updateUser(nick, "1");
+                updateUser(nick, true);
                 break;
             case PART:
                 // On Part, set the user to offline.
-                updateUser(nick, "0");
+                updateUser(nick, false);
                 break;
             default:
                 // Otherwise, do nothing.
@@ -171,9 +262,9 @@ public class Peabot extends IrcBot {
             case ALL:
             case LOG:
                 // First, set everybody in the channel to offline.
-                Datman.setAllOffline();
+                datman.setAllOffline();
                 // Then, set everybody currently in the channel to online.
-                updateUsers(users, "1");
+                updateUsers(users, true);
                 break;
             default:
                 // Otherwise, do nothing.
@@ -186,12 +277,16 @@ public class Peabot extends IrcBot {
      * @param user      String
      * @param online    String
      */
-    private void updateUser(final String user, final String online) {
-        // Create a list holding a single new Nick object.
-        final List<Nick> nick = Arrays.asList(new Nick(user));
+    private void updateUser(final String user, final boolean online) {
+        // Create a Nick for the user to update
+        final Nick nick = new Nick(user, online);
 
-        // Set the Nick to the requested online status.
-        Datman.setNickStatus(nick, online);
+        // Add it to either the join or part queue.
+        if (online) {
+            joinQueue.add(nick);
+        } else {
+            partQueue.add(nick);
+        }
     }
 
     /**
@@ -199,50 +294,10 @@ public class Peabot extends IrcBot {
      * @param users     User[]
      * @param online    String
      */
-    private void updateUsers(final User[] users, final String online) {
-        // Declare an empty list.
-        final List<Nick> nicks = new ArrayList<>();
-
-        // For each User in users, set it in a new Nick object.
+    private void updateUsers(final User[] users, final boolean online) {
+        // For each User in users, send it to the join/part queues.
         for (final User user : users) {
-            Nick nick = new Nick(user.getNick());
-            // Add the nicks to the list.
-            nicks.add(nick);
-        }
-
-        // Set all of the nicks in the list to the requested online status.
-        Datman.setNickStatus(nicks, online);
-    }
-
-    /**
-     * Start the necessary services and join the configured channel.
-     */
-    @Override
-    public void start() {
-        // Schedule the message/logging services and log in to Twitter if reactions are enabled.
-        switch (botmode) {
-            case ALL:
-                // For ALL mode, schedule the log and message services and set Twitter.
-                scheduleLogService();
-            case REACT:
-                // For REACT mode, don't schedule logging.
-                scheduleMessageService();
-                setTwitter();
-                break;
-            case LOG:
-                // For LOG mode, only schedule logging.
-                scheduleLogService();
-                break;
-        }
-
-        try {
-            // Join the configured IRC channel.
-            joinChannel();
-
-            // Once we're in, set this bot's status to online for that channel.
-            Datman.setBotStatus(1);
-        } catch (IrcException | IOException e) {
-            throw new RuntimeException(e);
+            updateUser(user.getNick(), online);
         }
     }
 
@@ -254,7 +309,7 @@ public class Peabot extends IrcBot {
      */
     private void joinChannel() throws IrcException, IOException {
         // Request the OAuth credentials from the database.
-        final String password = Datman.getIrcPassword(getName());
+        final String password = datman.getIrcPassword(getName());
 
         // Connect the Twitch IRC server using the password.
         connect("irc.twitch.tv", 6667, password);
@@ -301,7 +356,7 @@ public class Peabot extends IrcBot {
         final Action command = new Action(event);
 
         // Query the database for reaction to this action.
-        final List<Reaction> reactions = Datman.getReactions(command);
+        final List<Reaction> reactions = datman.getReactions(command);
 
         // Iterate over reactions, checking each for matching regex and nicks.
         for (final Reaction reaction : reactions) {
@@ -317,7 +372,7 @@ public class Peabot extends IrcBot {
      */
     private void setTwitter() {
         // Load a HashMap of Twitter credentials for this bot name.
-        final Map<String, String> credentials = Datman.getTwitterCredentials(getName());
+        final Map<String, String> credentials = datman.getTwitterCredentials(getName());
 
         // Verify that we receive credentials for the configurated account.
         if (!credentials.isEmpty()) {
