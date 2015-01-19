@@ -6,25 +6,25 @@ package com.ryancarrigan.chatman;
 public class Action {
 
     private final String  action;
-    private final String  eventName;
+    private final int eventKey;
     private final String  nick;
 
-    public Action(final String data, final String eventName, final String nick) {
-        this.action    = data;
-        this.eventName = eventName;
-        this.nick      = nick;
+    public Action(final String data, final int eventKey, final String nick) {
+        this.action   = data;
+        this.eventKey = eventKey;
+        this.nick     = nick;
     }
 
     public Action(final Event event) {
-        this(event.getRawDate(), event.getEventName(), event.getNick());
+        this(event.getRawDate(), event.getEventKey(), event.getNick());
     }
 
     public String getAction() {
         return this.action;
     }
 
-    public String getEventName() {
-        return eventName;
+    public int getEventKey() {
+        return eventKey;
     }
 
     public String getNick() {

@@ -20,8 +20,11 @@ public class PeabotLauncher {
      * @param args  String[] - the command line arguments
      */
     public static void main(final String[] args) {
-        // First load the accompanying properties file.
-        loadProperties("config.properties");
+        // See if the properties file is overridden by the command line.
+        final String propertiesFile = System.getProperty("chatman.propfile", "config.properties");
+
+        // And load the accompanying properties file.
+        loadProperties(propertiesFile);
 
         // Then build the bot using the system properties.
         final IrcBot bot = buildBot();

@@ -15,9 +15,13 @@
         <param name="threshold" value="debug"/>
         <param name="append" value="true"/>
         <layout class="org.apache.log4j.PatternLayout">
-            <param name="conversionPattern" value="%d %m%n"/>
+            <param name="conversionPattern" value="%d [%C] %m%n"/>
         </layout>
     </appender>
+
+    <logger name="twitter4j">
+        <level value="FATAL"/>
+    </logger>
 
     <root>
         <priority value = "debug" />

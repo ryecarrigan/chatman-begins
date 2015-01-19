@@ -1,35 +1,26 @@
 package com.ryancarrigan.chatman;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 /**
  * Created by Suave Peanut on 2014.12.27.
  */
 public class Event {
 
     private final String data;
-    private final String eventName;
-    private final String hostname;
-    private final String login;
+    private final int    eventKey;
     private final String nick;
-    private final Number number;
-    private final String target;
-    private final String timestamp;
 
-    public Event(final EventName event, final String login, final String hostname,
-                 final String nick, final String target, final String data, final Number number) {
-        this.eventName = event.getName();
-        this.login     = login;
-        this.hostname  = hostname;
+    public Event(final EventName event, final String nick, final String data) {
+        this.eventKey  = event.getKey();
         this.nick      = nick;
-        this.target    = target;
         this.data      = data;
-        this.number    = number;
-//        this.timestamp = new Timestamp(System.currentTimeMillis()).toString();
-        this.timestamp = null;
     }
 
     public String getValues() {
-        return String.format("('%s', '%s', '%s', '%s', '%s', '%s', '%s')", getEventName(), getLogin(),
-                getHostname(), getNick(), getTarget(), getData(), getNumber()).replaceAll("\'NULL\'", "NULL");
+        return String.format("(%s, '%s', '%s', '%s')", getEventKey(), getNick(), getData(), getEventTime())
+                .replaceAll("\'NULL\'", "NULL");
     }
 
     private String get(final Object parameter) {
@@ -42,36 +33,20 @@ public class Event {
                 .replace("'", "\\'");
     }
 
-    public String getEventName() {
-        return get(this.eventName);
+    private String getEventTime() {
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
     }
 
-    public String getHostname() {
-        return get(this.hostname);
-    }
-
-    public String getLogin() {
-        return get(this.login);
+    public int getEventKey() {
+        return this.eventKey;
     }
 
     public String getNick() {
         return get(this.nick);
     }
 
-    public String getNumber() {
-        return get(this.number);
-    }
-
     public String getRawDate() {
         return this.data;
-    }
-
-    public String getTarget() {
-        return get(this.target);
-    }
-
-    public String getTimestamp() {
-        return get(timestamp);
     }
 
     public String toString() {

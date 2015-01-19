@@ -24,7 +24,7 @@ public class DataConnection {
     DataConnection() {
         final String database = properties.getProperty("chatman.database", "localhost");
         final String dbHost = properties.getProperty("chatman.dbhost", "localhost");
-        this.host     = String.format("jdbc:mysql://%s:3306/%s?characterEncoding=utf-8", dbHost, database);
+        this.host = String.format("jdbc:mysql://%s:3306/%s?useUnicode=true&characterEncoding=utf8", dbHost, database);
 
         final String dbPass = properties.getProperty("chatman.dbpass", "ch4tp455");
         final String dbUser = properties.getProperty("chatman.dbuser", "chatman");
@@ -64,17 +64,18 @@ public class DataConnection {
         return null;
     }
 
-    void update(final String key, final Object... args) {
+    int update(final String key, final Object... args) {
         final String command = String.format(queries.getProperty(key), args);
         try {
             connect();
-            createStatement().executeUpdate(command);
+            return createStatement().executeUpdate(command);
         } catch (final SQLException sqle) {
             logger.info(command);
             logger.error("Error executing update on database.", sqle);
         } finally {
             disconnect();
         }
+        return -1;
     }
 
     private static Properties loadProperties(final String fileName) {

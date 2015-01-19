@@ -7,29 +7,39 @@ import com.ryancarrigan.chatman.Reaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.UnsupportedEncodingException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 /**
  * Created by Suave Peanut on 2015.1.10.
  */
-public class Datman {
+public class Dataman {
 
-    private static Logger logger = LoggerFactory.getLogger(Datman.class);
+    private static Logger logger = LoggerFactory.getLogger(Dataman.class);
 
-    private String         botName;
-    private String         channel;
+    private String botName;
+    private String channel;
 
-    public Datman(final String botName, final String channel) {
+    public Dataman(final String botName, final String channel) {
+        this(botName, channel, false);
+    }
+
+    public Dataman(final String botName, final String channel, final boolean create) {
         this.botName    = botName;
         this.channel    = channel.replace("#", "");
-        createTables();
+        if (create) createTables();
     }
 
     private void createTables() {
-        getInstance().update("CreateEventTable", channel);
-        getInstance().update("CreateUserTable",  channel);
+        if (!hasEventTable()) {
+            getInstance().update("CreateEventTable", channel);
+            getInstance().update("AddEventIndex", channel);
+            getInstance().update("AddEventKey", channel, channel);
+            getInstance().update("CreateUserTable", channel);
+        }
     }
 
     private DataConnection getInstance() {
@@ -56,14 +66,15 @@ public class Datman {
         final DataConnection connection = getInstance();
         final List<Reaction> reactionList = new ArrayList<>();
         try {
-            final ResultSet resultSet = connection.query("GetReactions", action.getEventName(), channel, botName);
+            final ResultSet resultSet = connection.query("GetReactions", action.getEventKey(), channel, botName);
             if (resultSet != null) {
                 while (resultSet.next()) {
+                    final String message = new String(resultSet.getString("Reaction").getBytes(), "UTF-8");
                     final Reaction newReaction = new Reaction(
                             resultSet.getString("ReactionType"),
                             resultSet.getString("Nick"),
                             resultSet.getString("Regex"),
-                            resultSet.getString("Reaction"),
+                            message,
                             resultSet.getInt("Times")
                     );
                     reactionList.add(newReaction);
@@ -71,6 +82,8 @@ public class Datman {
             }
         } catch (final SQLException sqle) {
             logger.error(sqle.getMessage());
+        } catch (final UnsupportedEncodingException uee) {
+            logger.error("Unable to encode reaction as UTF-8.");
         } finally {
             connection.disconnect();
         }
@@ -98,16 +111,44 @@ public class Datman {
         return credentials;
     }
 
-    public void insertEvents(final Collection<Event> events) {
-        getInstance().update("InsertEvents", channel, valuesToString(events));
+    public int getUserKey(final String nick) {
+        final DataConnection connection = getInstance();
+        try {
+            final ResultSet resultSet = connection.query("GetUserKey", channel, nick);
+            if (resultSet != null && resultSet.next()) {
+                return resultSet.getInt("UserKey");
+            }
+        } catch (final SQLException sqle) {
+            logger.error(sqle.getMessage());
+        } finally {
+            connection.disconnect();
+        }
+        return -1;
     }
 
-    public void setAllOffline() {
-        getInstance().update("SetAllOffline", channel);
+    boolean hasEventTable() {
+        try {
+            return getInstance().query("CheckEventTable", channel).isBeforeFirst();
+        } catch (SQLException e) {
+            logger.error("Exception", e);
+            return false;
+        }
     }
 
-    public void setBotStatus(final int status) {
-        getInstance().update("UpdateBotStatus", channel, status, status);
+    public int insertEvents(final Collection<Event> events) {
+        return getInstance().update("InsertEvents", channel, valuesToString(events));
+    }
+
+    public int setAllOffline() {
+        return getInstance().update("SetAllOffline", channel);
+    }
+
+    public int setBotStatus(final int status) {
+        return getInstance().update("UpdateBotStatus", channel, status, getDate(), status);
+    }
+
+    private String getDate() {
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
     }
 
     public void setNickStatus(final Collection<Nick> nicks, final String online) {

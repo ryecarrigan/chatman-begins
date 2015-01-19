@@ -5,44 +5,44 @@ package com.ryancarrigan.chatman;
  */
 public enum EventName {
 
-    ACTION("Action"),
-    CHANNEL_INFO("ChannelInfo"),
-    CONNECT("Connect"),
-    DEOP("Deop"),
-    DEVOICE("DeVoice"),
-    DISCONNECT("Disconnect"),
-    INVITE("Invite"),
-    JOIN("Join"),
-    KICK("Kick"),
-    MESSAGE("Message"),
-    MODE("Mode"),
-    NICK_CHANGE("NickChange"),
-    NOTICE("Notice"),
-    OP("Op"),
-    PART("Part"),
-    PRIVATE_MESSAGE("PrivateMessage"),
-    QUIT("Quit"),
-    REMOVE("Remove"),
-    REMOVE_CHANNEL_BAN("RemoveChannelBan"),
-    REMOVE_CHANNEL_KEY("RemoveChannelKey"),
-    SERVER_RESPONSE("ServerResponse"),
-    SET("Set"),
-    SET_CHANNEL_BAN("SetChannelBan"),
-    SET_CHANNEL_KEY("SetChannelKey"),
-    TOPIC("Topic"),
-    UNKOWN("Unknown"),
-    USER_LIST("UserList"),
-    USER_MODE("UserMode"),
-    VOICE("Voice");
+    ACTION(1),
+    CHANNEL_INFO(2),
+    CONNECT(3),
+    DEOP(4),
+    DEVOICE(5),
+    DISCONNECT(6),
+    INVITE(7),
+    JOIN(8),
+    KICK(9),
+    MESSAGE(10),
+    MODE(11),
+    NICK_CHANGE(12),
+    NOTICE(13),
+    OP(14),
+    PART(15),
+    PRIVATE_MESSAGE(16),
+    QUIT(17),
+    REMOVE(18),
+    REMOVE_CHANNEL_BAN(0),
+    REMOVE_CHANNEL_KEY(0),
+    SERVER_RESPONSE(19),
+    SET(20),
+    SET_CHANNEL_BAN(0),
+    SET_CHANNEL_KEY(0),
+    TOPIC(21),
+    UNKNOWN(0),
+    USER_LIST(22),
+    USER_MODE(23),
+    VOICE(24);
 
-    private final String name;
+    private final int key;
 
-    EventName(final String name) {
-        this.name = name;
+    EventName(final int key) {
+        this.key = key;
     }
 
-    String getName() {
-        return this.name;
+    int getKey() {
+        return this.key;
     }
 
 }

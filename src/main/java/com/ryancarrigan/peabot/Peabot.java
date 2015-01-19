@@ -1,7 +1,7 @@
 package com.ryancarrigan.peabot;
 
 import com.ryancarrigan.chatman.*;
-import com.ryancarrigan.data.Datman;
+import com.ryancarrigan.data.Dataman;
 import org.jibble.pircbot.IrcException;
 import org.jibble.pircbot.User;
 import org.slf4j.Logger;
@@ -13,8 +13,11 @@ import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -24,20 +27,33 @@ import java.util.concurrent.TimeUnit;
 public class Peabot extends IrcBot {
 
     private static final Logger logger = LoggerFactory.getLogger(Peabot.class);
-    private static final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(8);
 
-    private final Botmode botmode;
-    private Datman        datman;
-    private Deque<Event>  loggingQueue = new LinkedList<>();
-    private Queue<String> messageQueue = new LinkedList<>();
-    private Queue<Nick>   joinQueue    = new LinkedList<>();
-    private Queue<Nick>   partQueue    = new LinkedList<>();
-    private Twitter       twitter;
+    private final Botmode  botmode;
+    private Dataman        dataman;
+    private EventLogger    loggingQueue;
+    private MessageService messageQueue;
+    private NickService    joinQueue;
+    private NickService    partQueue;
+    private Twitter        twitter;
+    private ServiceQueue[] queues;
+
+    private Future<?> logSchedule;
+    private Future<?> messageSchedule;
+    private Future<?> joinSchedule;
+    private Future<?> partSchedule;
 
     public Peabot(final String channel, final String login, final Botmode botmode) {
         super(channel, login);
         this.botmode = botmode;
-        this.datman  = datman();
+        this.dataman = new Dataman(login, channel, true);
+
+        // Define a runnable that can be executed on a schedule.
+        this.loggingQueue = new EventLogger(login, channel);
+        this.messageQueue = new MessageService(this);
+        this.joinQueue    = new NickService(login, channel, true);
+        this.partQueue    = new NickService(login, channel, false);
+        this.queues       = new ServiceQueue[] { loggingQueue, messageQueue, joinQueue, partQueue };
     }
 
     /**
@@ -69,10 +85,50 @@ public class Peabot extends IrcBot {
             joinChannel();
 
             // Once we're in, set this bot's status to online for that channel.
-            datman.setBotStatus(1);
+            dataman.setBotStatus(1);
         } catch (IrcException | IOException e) {
             throw new RuntimeException(e);
         }
+
+        logger.info(String.format("Starting %s in %s", getName(), getChannel()));
+    }
+
+    private void scheduleLogService() {
+        this.logSchedule = executor.scheduleAtFixedRate(loggingQueue, 0, 2, TimeUnit.SECONDS);
+    }
+
+    private void scheduleMessageService() {
+        this.messageSchedule = executor.scheduleAtFixedRate(messageQueue, 0, 800, TimeUnit.MILLISECONDS);
+    }
+
+    private void scheduleQueueReport() {
+        // Define a runnable that can be executed on a schedule.
+        final Runnable queueReporter = new Runnable() {
+            @Override
+            public void run() {
+                final int logSize = loggingQueue.size();
+                final String messages = String.format(
+                        "<%s on %s>\tL:%d\tM:%d\tJ:%d\tP:%d", getName(), getChannel(),
+                        logSize, messageQueue.size(), joinQueue.size(), partQueue.size());
+
+                // More backup strats for bloated logging.
+                if (logSize > 250) {
+                    loggingQueue.run();
+                }
+                logger.info(messages);
+            }
+        };
+
+        // Show queue status once every few minutes.
+        executor.scheduleAtFixedRate(queueReporter, 5, 5, TimeUnit.MINUTES);
+    }
+
+    /**
+     * Schedule joins and parts to be logged alternately every 15 seconds.
+     */
+    private void scheduleUserServices() {
+        this.joinSchedule = executor.scheduleAtFixedRate(joinQueue, 0,  30, TimeUnit.SECONDS);
+        this.partSchedule = executor.scheduleAtFixedRate(partQueue, 15, 30, TimeUnit.SECONDS);
     }
 
     /**
@@ -85,134 +141,37 @@ public class Peabot extends IrcBot {
             // Therefore, set everybody offline.
             case ALL:
             case USER:
-                datman.setAllOffline();
+                dataman.setAllOffline();
                 break;
         }
 
+        // Dump all un-logged events into a file.
+        for (final ServiceQueue queue : queues) queue.dumpQueue();
+        executor.shutdown();
+
         // Record this bot offline for this channel.
-        datman.setBotStatus(0);
+        dataman.setBotStatus(0);
 
         // And disconnect from the IRC server.
         disconnect();
     }
 
-    private void scheduleLogService() {
-        // Define a runnable that can be executed on a schedule.
-        final Runnable logging = new Runnable() {
-            @Override
-            public void run() {
-                // Check if there are events waiting to be logged.
-                final int size = loggingQueue.size();
-                if (size > 0) {
-                    // Send all queued events to the database.
-                    datman().insertEvents(loggingQueue);
-                    // Clear the queue after events have been logged.
-                    loggingQueue.clear();
-                }
-                logger.info(String.format("Recorded %d events.", size));
-            }
-        };
-
-        // Schedule events to be logged into the database every 5 seconds.
-        executor.scheduleAtFixedRate(logging, 0, 5, TimeUnit.SECONDS);
-    }
-
-    private void scheduleMessageService() {
-        // Define a runnable that can be executed on a schedule.
-        final Runnable messaging = new Runnable() {
-            @Override
-            public void run() {
-                // Check if there is a message in the queue.
-                final String message = messageQueue.poll();
-                if (message != null) {
-                    // Send a message to the current channel.
-                    sendMessage(getChannel(), message);
-
-                    // Send the newly-created message into the database.
-                    final Event event = new Event(EventName.MESSAGE, getNick(), null, getNick(), null, message, null);
-                    loggingQueue.add(event);
-                }
-            }
-        };
-
-        // Schedule messages to be removed from the queue every 750ms.
-        executor.scheduleAtFixedRate(messaging, 0, 750, TimeUnit.MILLISECONDS);
-    }
-
-    private void scheduleQueueReport() {
-        // Define a runnable that can be executed on a schedule.
-        final Runnable queueReporter = new Runnable() {
-            @Override
-            public void run() {
-                final String messages = String.format(
-                        "<QUEUES> L:%d M:%d J:%d P:%d",
-                        loggingQueue.size(), messageQueue.size(),joinQueue.size(), partQueue.size());
-                logger.info(messages);
-            }
-        };
-
-        // Show queue status once every few minutes.
-        executor.scheduleAtFixedRate(queueReporter, 5, 5, TimeUnit.MINUTES);
-    }
-
-    private void scheduleUserServices() {
-        // Define a runnable that can be executed on a schedule.
-        final Runnable joinLogging = new Runnable() {
-            @Override
-            public void run() {
-                // Check if there are events waiting to be logged.
-                if (!joinQueue.isEmpty()) {
-                    // Send all queued events to the database.
-                    datman().setNickStatus(joinQueue, "1");
-                    // Clear the queue after events have been logged.
-                    joinQueue.clear();
-                }
-            }
-        };
-
-        final Runnable partLogging = new Runnable() {
-            @Override
-            public void run() {
-                // Check if there are events waiting to be logged.
-                if (!partQueue.isEmpty()) {
-                    // Send all queued events to the database.
-                    datman().setNickStatus(partQueue, "0");
-                    // Clear the queue after events have been logged.
-                    partQueue.clear();
-                }
-            }
-        };
-
-        // Schedule joins and parts to be logged alternately every 30 seconds.
-        executor.scheduleAtFixedRate(joinLogging, 0,  60, TimeUnit.SECONDS);
-        executor.scheduleAtFixedRate(partLogging, 30, 60, TimeUnit.SECONDS);
-    }
-
-    private Datman datman() {
-        return new Datman(getName(), getChannel());
-    }
-
     /**
      * Handles events of every type.
      * @param eventName String
-     * @param login     String
-     * @param hostName  String
      * @param nick      String
-     * @param target    String
      * @param data      String
-     * @param number    String
      */
     @Override
-    public void receiveEvent(final EventName eventName, final String login, final String hostName, final String nick,
-                             final String target, final String data, final Number number) {
+    public void receiveEvent(final EventName eventName, final String nick, final String data) {
         // Build a new event from the input parameters.
-        final Event event = new Event(eventName, login, hostName, nick, target, data, number);
+        final Event event = new Event(eventName, nick, data);
 
         // Determine handling of the event based on the bot mode.
         switch (botmode) {
             case ALL:
                 // For ALL mode, log the event and react to it.
-                loggingQueue.add(event);
+                logEvent(event);
                 setUserStatus(eventName, nick);
             case REACT:
                 // For REACT mode, react but do not log.
@@ -220,9 +179,33 @@ public class Peabot extends IrcBot {
                 break;
             case LOG:
                 // For LOG mode, log but do not react.
-                loggingQueue.add(event);
+                logEvent(event);
                 setUserStatus(eventName, nick);
                 break;
+        }
+    }
+
+    /**
+     * Enqueues an event to be stored in the event log.
+     * @param event Event
+     */
+    private void logEvent(final Event event) {
+        loggingQueue.add(event);
+
+        // Backup strats if the log starts to get clogged?
+        if (loggingQueue.size() > 250) {
+            logger.info("Logging queue is filling up. Checking whether queue is still running...");
+            loggingQueue.run();
+            restartLoggingQueue();
+        }
+    }
+
+    private void restartLoggingQueue() {
+        boolean isCancelled = this.logSchedule.isCancelled();
+        boolean isDone      = this.logSchedule.isDone();
+        if (isCancelled || isDone) {
+            logger.info(String.format("Restarting log scheduler. (Done: %b, Cancelled:%b)", isCancelled, isDone));
+            scheduleLogService();
         }
     }
 
@@ -262,7 +245,7 @@ public class Peabot extends IrcBot {
             case ALL:
             case LOG:
                 // First, set everybody in the channel to offline.
-                datman.setAllOffline();
+                dataman.setAllOffline();
                 // Then, set everybody currently in the channel to online.
                 updateUsers(users, true);
                 break;
@@ -309,7 +292,7 @@ public class Peabot extends IrcBot {
      */
     private void joinChannel() throws IrcException, IOException {
         // Request the OAuth credentials from the database.
-        final String password = datman.getIrcPassword(getName());
+        final String password = dataman.getIrcPassword(getName());
 
         // Connect the Twitch IRC server using the password.
         connect("irc.twitch.tv", 6667, password);
@@ -332,7 +315,7 @@ public class Peabot extends IrcBot {
                 final int count = reaction.getCount();
                 for (int i = 0; i < count; ++i) {
                     final String[] reactions = reaction.getReaction().split("\\|\\|");
-                    Collections.addAll(messageQueue, reactions);
+                    Collections.addAll(messageQueue.getQueue(), reactions);
                 }
                 break;
             case "Tweet":
@@ -356,7 +339,7 @@ public class Peabot extends IrcBot {
         final Action command = new Action(event);
 
         // Query the database for reaction to this action.
-        final List<Reaction> reactions = datman.getReactions(command);
+        final List<Reaction> reactions = dataman.getReactions(command);
 
         // Iterate over reactions, checking each for matching regex and nicks.
         for (final Reaction reaction : reactions) {
@@ -372,7 +355,7 @@ public class Peabot extends IrcBot {
      */
     private void setTwitter() {
         // Load a HashMap of Twitter credentials for this bot name.
-        final Map<String, String> credentials = datman.getTwitterCredentials(getName());
+        final Map<String, String> credentials = dataman.getTwitterCredentials(getName());
 
         // Verify that we receive credentials for the configurated account.
         if (!credentials.isEmpty()) {
